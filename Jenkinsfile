@@ -19,19 +19,21 @@ pipeline {
 
         stage('CD: Deploy em Produção') {
             steps {
-                // O plugin sshagent usa a credencial que criamos no Passo 1
                 sshagent(['ssh-producao-oci']) {
                     sh """
-                        # 1. Copia o código para o servidor de produção
-                        scp -o StrictHostKeyChecking=no -r . ubuntu@${IP_PRODUCAO}:/home/ubuntu/app
-                        
-                        # 2. Comando remoto para Build e Run na Instância B
+                        # 1. Preparar a pasta no destino (limpar arquivos antigos para evitar conflito de permissão)
+                        ssh -o StrictHostKeyChecking=no ubuntu@${IP_PRODUCAO} 'sudo rm -rf /home/ubuntu/app && mkdir -p /home/ubuntu/app'
+
+                        # 2. Copiar apenas o necessário (ignorando a pasta .git e node_modules local)
+                        # Usamos tar para empacotar e desempacotar via SSH, é mais rápido e preserva permissões
+                        tar --exclude='.git' --exclude='.npm-cache' -czf - . | ssh -o StrictHostKeyChecking=no ubuntu@${IP_PRODUCAO} 'tar -xzf - -C /home/ubuntu/app'
+                
+                        # 3. Executar o build e run na Instância B
                         ssh -o StrictHostKeyChecking=no ubuntu@${IP_PRODUCAO} '
                             cd /home/ubuntu/app
-                            docker build -t minha-app-node .
-                            docker stop app-container || true
-                            docker rm app-container || true
-                            docker run -d --name app-container -p 80:3000 minha-app-node
+                            sudo docker build -t minha-app-node .
+                            sudo docker rm -f app-container || true
+                            sudo docker run -d --name app-container -p 80:3000 minha-app-node
                         '
                     """
                 }
