@@ -1,5 +1,7 @@
 pipeline {
-    agent any
+    agent {
+        label 'oci-agent01' // or 'node-name'
+    }
 
     environment {
         // IP Público da sua Instância B
