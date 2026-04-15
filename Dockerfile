@@ -1,4 +1,5 @@
-FROM node:18-slim
+FROM node:current-slim
+# FROM node:18-slim
 WORKDIR /app
 COPY package*.json ./
 RUN npm install --production
