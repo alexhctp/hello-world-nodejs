@@ -4,7 +4,7 @@ pipeline {
 
     environment {
         APP_HOST = 'localhost'
-        APP_PORT = '3000'
+        APP_PORT = '8081'
         IMAGE_NAME = 'minha-app-node-local'
         CONTAINER_NAME = 'app-container-local'
     }
