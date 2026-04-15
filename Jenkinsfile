@@ -1,11 +1,12 @@
 pipeline {
-    agent {
-        label 'oci-agent01' // or 'node-name'
-    }
+    // Executa no agente local do Jenkins.
+    agent any
 
     environment {
-        // IP Público da sua Instância B
-        IP_PRODUCAO = '136.248.106.160'
+        APP_HOST = 'localhost'
+        APP_PORT = '3000'
+        IMAGE_NAME = 'minha-app-node-local'
+        CONTAINER_NAME = 'app-container-local'
     }
 
     stages {
@@ -19,26 +20,18 @@ pipeline {
             }
         }
 
-        stage('CD: Deploy em Produção') {
+        stage('Docker: Build Local') {
             steps {
-                sshagent(['ssh-producao-oci']) {
-                    sh """
-                        # 1. Preparar a pasta no destino (limpar arquivos antigos para evitar conflito de permissão)
-                        ssh -o StrictHostKeyChecking=no ubuntu@${IP_PRODUCAO} 'sudo rm -rf /home/ubuntu/app && mkdir -p /home/ubuntu/app'
+                sh 'docker build -t ${IMAGE_NAME} .'
+            }
+        }
 
-                        # 2. Copiar apenas o necessário (ignorando a pasta .git e node_modules local)
-                        # Usamos tar para empacotar e desempacotar via SSH, é mais rápido e preserva permissões
-                        tar --exclude='.git' --exclude='.npm-cache' -czf - . | ssh -o StrictHostKeyChecking=no ubuntu@${IP_PRODUCAO} 'tar -xzf - -C /home/ubuntu/app'
-
-                        # 3. Executar o build e run na Instância B
-                        ssh -o StrictHostKeyChecking=no ubuntu@${IP_PRODUCAO} '
-                            cd /home/ubuntu/app
-                            sudo docker build -t minha-app-node .
-                            sudo docker rm -f app-container || true
-                            sudo docker run -d --name app-container -p 80:3000 minha-app-node
-                        '
-                    """
-                }
+        stage('Docker: Run Localhost') {
+            steps {
+                sh """
+                    docker rm -f ${CONTAINER_NAME} || true
+                    docker run -d --name ${CONTAINER_NAME} -p 127.0.0.1:${APP_PORT}:3000 ${IMAGE_NAME}
+                """
             }
         }
     }
